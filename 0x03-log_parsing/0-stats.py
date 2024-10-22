@@ -1,58 +1,63 @@
 #!/usr/bin/python3
+""" Log parsing:
 
-"""Write a script that reads stdin line by line and compute metrics"""
+A script that reads stdin line by line and computes metrics:
 
-import re
+Input format: <IP Address> - [<date>] "GET /projects/260 HTTP/1.1"
+<status code> <file size> (if the format is not this one, the line
+must be skipped)
+After every 10 lines and/or a keyboard interruption (CTRL + C),
+print these statistics from the beginning:
+Total file size: File size: <total size>
+where <total size> is the sum of all previous <file size>
+(see input format above)
+Number of lines by status code:
+possible status code: 200, 301, 400, 401, 403, 404, 405 and 500
+if a status code doesn’t appear or is not an integer,
+don’t print anything for this status code
+format: <status code>: <number>
+status codes should be printed in ascending order
 
+line list = [<IP Address>, -, [<date>], "GET /projects/260 HTTP/1.1",
+<status code>, <file size>]
 
-def print_stats(status_counts: int, file_size: int):
-    """function to print out the stats"""
-    print("File size: {}".format(file_size))
-    for status in sorted(status_counts):
-        if status_counts[status] > 0:
-            print("{}: {}".format(status, status_counts[status]))
-
-
-def print_logs():
-    """
-    Reads logs from standard input and generates reports
-    Reports:
-        * Prints log size after reading every 10 lines & at KeyboardInterrupt
-    Raises:
-        KeyboardInterrupt (Exception): handles this exception and raises it
-    """
-    stdin = __import__('sys').stdin
-    line_read = 0
-    total_size = 0
-    status_counts = {}
-    valid_status_codes = {'200', '301', '400',
-                          '401', '403', '404', '405', '500'}
-
-    try:
-        for line in stdin:
-            line_read += 1
-            # split the lines read for the ip, date, status and size
-            line = line.split()
-
-            try:
-                total_size += int(line[-1])
-                if line[-2] in valid_status_codes:
-                    if line[-2] in status_counts:
-                        status_counts[line[-2]] += 1
-                    else:
-                        status_counts[line[-2]] = 1
-            except (IndexError, ValueError):
-                pass
-
-            if line_read % 10 == 0:
-                print_stats(status_counts, total_size)
-                line_read = 0
-
-        print_stats(status_counts, total_size)
-    except KeyboardInterrupt:
-        print_stats(status_counts, total_size)
-        raise
+"""
 
 
-if __name__ == "__main__":
-    print_logs()
+import sys
+
+
+def printx(data, status):
+    """ print the log """
+    print("File size: {}".format(data))
+    for key, value in sorted(status.items()):
+        if value != 0:
+            print("{}: {}".format(key, value))
+
+
+status = {
+    "200": 0, "301": 0, "400": 0, "401": 0,
+    "403": 0, "404": 0, "405": 0, "500": 0}
+counter = 0
+data = 0
+try:
+    for line in sys.stdin:
+        if counter == 10:
+            printx(data, status)
+            counter = 1
+        else:
+            counter = counter + 1
+        parsed = line.split()
+        try:
+            data = data + int(parsed[-1])
+        except Exception as e:
+            pass
+        try:
+            for key, value in status.items():
+                if key == parsed[-2]:
+                    status[key] = status[key] + 1
+        except Exception as e:
+            pass
+    printx(data, status)
+except KeyboardInterrupt as e:
+    printx(data, status)
